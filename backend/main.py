@@ -1,8 +1,4 @@
-"""
-Tetrifox Logistics Engine - Main Entry Point
 
-FastAPI application with CORS, exception handlers, and API routes.
-"""
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -18,37 +14,28 @@ from api.logistics import router as logistics_router
 from api.history import router as history_router
 from core.config import setup_logging
 
-# Setup logging
 setup_logging()
 
-# Create FastAPI app
 app = FastAPI(
     title="Tetrifox Logistics Engine",
     description="Rule-based parcel routing and logistics processing",
     version="2.0.0"
 )
 
-# CORS middleware to allow frontend to communicate with backend
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:8080",
-        "http://localhost:5173",
-        "http://localhost:3000",
-        "http://192.168.1.4:8080",
-        "http://192.168.1.4:5173"
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Exception handlers (order matters - more specific first)
 app.add_exception_handler(XmlParsingError, xml_exception_handler)
 app.add_exception_handler(AggregatedValidationError, aggregated_validation_handler)
 app.add_exception_handler(Exception, generic_exception_handler)
 
-# Include API routes
 app.include_router(logistics_router, prefix="/api/v1")
 app.include_router(history_router, prefix="/api/v1/history", tags=["History"])
 

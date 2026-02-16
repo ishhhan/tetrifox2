@@ -3,7 +3,6 @@ from typing import List, Optional
 
 @dataclass
 class Parcel:
-    """Internal Domain Object for a Parcel"""
     id: str
     recipient: str
     street: str
@@ -15,7 +14,6 @@ class Parcel:
 
 @dataclass
 class InternalRule:
-    """Internal representation of a rule"""
     name: str
     field: str
     type: str

@@ -11,7 +11,4 @@ def process_logistics(
     payload: LogisticsRequest,
     orchestrator: LogisticsOrchestrator = Depends(get_orchestrator)
 ):
-    """
-    Process logistics data and assign routes.
-    """
     return orchestrator.process(payload)

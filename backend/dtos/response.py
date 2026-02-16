@@ -15,13 +15,11 @@ class ParcelOutputDTO(BaseModel):
     assigned_route: List[str]
 
 class RemovedParcelDTO(BaseModel):
-    """A parcel that was removed during parsing."""
     parcel_id: str
-    reason: str  # "duplicate_id", "duplicate_content", "missing_field"
-    details: str  # "matches P001" or "missing: recipient"
+    reason: str  
+    details: str 
 
 class ParsingStatsDTO(BaseModel):
-    """Statistics from XML parsing."""
     total_elements: int
     valid_parcels: int
     duplicates_removed: int
@@ -31,11 +29,9 @@ class ParsingStatsDTO(BaseModel):
     removed_parcels: List[RemovedParcelDTO] = []
 
 class BaseResponseDTO(BaseModel):
-    """Base model for all success responses to ensure consistency."""
     status: str = "success"
 
 class GenericMessageDTO(BaseResponseDTO):
-    """Simple response with a message."""
     message: str
 
 class LogisticsResponse(BaseResponseDTO):
@@ -53,7 +49,7 @@ class HistoryDetailDTO(BaseResponseDTO):
     timestamp: str
     total_processed: int
     data: List[ParcelOutputDTO]
-    departments: List[Dict[str, Any]]  # Raw dump from input rules
+    departments: List[Dict[str, Any]]  
     priority_order: List[str]
     parsing_stats: Optional[ParsingStatsDTO] = None
 

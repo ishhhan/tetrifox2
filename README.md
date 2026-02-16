@@ -51,3 +51,8 @@ Strict constraints ensure the system never processes invalid states:
 
 *   **/backend**: The decision engine (Python/FastAPI). Contains the routing algorithms, parsers, and validation logic.
 *   **/frontend**: The control dashboard (React/TypeScript). Manages state, visualizes results, and enforces UI-level constraints.
+
+
+frontend folder: python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000 
+
+backend folder: npm run dev

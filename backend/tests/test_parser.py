@@ -1,6 +1,4 @@
-"""
-Unit Tests for XmlParserService.
-"""
+
 import pytest
 from services.logistics.parser import XmlParserService
 
@@ -29,7 +27,6 @@ def test_parse_valid_xml():
     assert parcels[0].weight == 10.5
 
 def test_deduplication_by_id():
-    """Test that parcels with same ID are removed."""
     xml = """
     <Container>
         <Parcel id="P001">
@@ -49,7 +46,6 @@ def test_deduplication_by_id():
     assert "P001" in stats.duplicate_ids
 
 def test_deduplication_by_content():
-    """Test that identical content generates same ID/hash and is removed."""
     xml = """
     <Container>
         <Parcel>
@@ -68,7 +64,6 @@ def test_deduplication_by_content():
     assert stats.duplicates_removed == 1
 
 def test_negative_values_corrected():
-    """Test that negative weight/value is corrected to 0."""
     xml = """
     <Container>
         <Parcel>

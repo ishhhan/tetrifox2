@@ -18,28 +18,14 @@ class DepartmentRuleDTO(BaseModel):
             min_val = data.get('min')
             max_val = data.get('max')
             
-            # Auto-calculate max for 'value' rules if missing
             if field == 'value' and min_val is not None and max_val is None:
-                # Default to 10x the min value (as per rule: max <= 10x min)
-                # We use the constant from BusinessValidator
                 calc_max = min_val * BusinessValidator.MAX_VALUE_RATIO
                 
-                # Cap at the global maximum allowed
                 if calc_max > BusinessValidator.MAX_VALUE:
                     calc_max = BusinessValidator.MAX_VALUE
                 
                 data['max'] = calc_max
 
-            # # Auto-calculate max for 'weight' rules if missing
-            # if field == 'weight' and min_val is not None and max_val is None:
-            #     # Default to min + 10 (as per rule: span <= 10kg)
-            #     calc_max = min_val + BusinessValidator.MAX_WEIGHT_SPAN
-                
-            #     # Cap at global max weight
-            #     if calc_max > BusinessValidator.MAX_WEIGHT:
-            #         calc_max = BusinessValidator.MAX_WEIGHT
-                
-            #     data['max'] = calc_max
         return data
 
     @field_validator('max')
@@ -48,7 +34,6 @@ class DepartmentRuleDTO(BaseModel):
         min_val = info.data.get('min')
         field_type = info.data.get('field', 'generic')
         if v is not None and min_val is not None:
-            # Call the centralized validator
             BusinessValidator.validate_department_range(min_val, v, field_type)
         return v
 
