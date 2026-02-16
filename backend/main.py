@@ -14,7 +14,8 @@ from core.exceptions import (
     aggregated_validation_handler,
     generic_exception_handler
 )
-from api.routes import router
+from api.logistics import router as logistics_router
+from api.history import router as history_router
 from core.config import setup_logging
 
 # Setup logging
@@ -33,7 +34,9 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:8080",
         "http://localhost:5173",
-        "http://localhost:3000"
+        "http://localhost:3000",
+        "http://192.168.1.4:8080",
+        "http://192.168.1.4:5173"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -45,8 +48,9 @@ app.add_exception_handler(XmlParsingError, xml_exception_handler)
 app.add_exception_handler(AggregatedValidationError, aggregated_validation_handler)
 app.add_exception_handler(Exception, generic_exception_handler)
 
-# Include API routes with /api/v1 prefix
-app.include_router(router, prefix="/api/v1")
+# Include API routes
+app.include_router(logistics_router, prefix="/api/v1")
+app.include_router(history_router, prefix="/api/v1/history", tags=["History"])
 
 
 @app.get("/health")

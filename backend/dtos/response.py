@@ -30,8 +30,15 @@ class ParsingStatsDTO(BaseModel):
     duplicate_ids: List[str] = []
     removed_parcels: List[RemovedParcelDTO] = []
 
-class LogisticsResponse(BaseModel):
-    status: str
+class BaseResponseDTO(BaseModel):
+    """Base model for all success responses to ensure consistency."""
+    status: str = "success"
+
+class GenericMessageDTO(BaseResponseDTO):
+    """Simple response with a message."""
+    message: str
+
+class LogisticsResponse(BaseResponseDTO):
     total_processed: int
     data: List[ParcelOutputDTO]
     parsing_stats: Optional[ParsingStatsDTO] = None
@@ -40,3 +47,15 @@ class HistorySummaryDTO(BaseModel):
     id: str
     timestamp: str
     total_processed: int
+
+class HistoryDetailDTO(BaseResponseDTO):
+    id: str
+    timestamp: str
+    total_processed: int
+    data: List[ParcelOutputDTO]
+    departments: List[Dict[str, Any]]  # Raw dump from input rules
+    priority_order: List[str]
+    parsing_stats: Optional[ParsingStatsDTO] = None
+
+class HistoryListResponse(BaseResponseDTO):
+    history: List[HistorySummaryDTO]

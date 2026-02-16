@@ -75,7 +75,7 @@ class RoutingEngineService:
         for field in priority_order:
             if field not in self.ALLOWED_FIELDS:
                 raise ValueError(f"Invalid priority field: {field}")
-    
+     
     def execute_routing(self, parcels: List[Parcel]) -> List[Parcel]:
         """
         Process all parcels and assign routes based on department rules.

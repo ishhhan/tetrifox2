@@ -16,7 +16,12 @@ class RuleEvaluator:
                 # Handle open-ended ranges (-inf to +inf)
                 min_v = rule.min if rule.min is not None else float('-inf')
                 max_v = rule.max if rule.max is not None else float('inf')
-                return min_v <= val <= max_v
+                
+                # Logic: (min, max] -> min < val <= max
+                is_above_min = val > min_v
+                is_below_max = val <= max_v
+                
+                return is_above_min and is_below_max
             except (ValueError, TypeError):
                 return False
 

@@ -98,18 +98,22 @@ class XmlParserService:
                 missing_in_this_parcel = []
                 
                 # Parse nested structure with multiple spelling variations
-                rec_node = (
-                    p_elem.find("Receipient") or  # Common typo in XML
-                    p_elem.find("Recipient") or
-                    p_elem.find("recipient")
-                )
+                rec_node = p_elem.find("Receipient")
+                if rec_node is None:
+                    rec_node = p_elem.find("Recipient")
+                if rec_node is None:
+                    rec_node = p_elem.find("recipient")
+                
                 recipient = get_text(rec_node, "Name")
                 if not recipient: missing_in_this_parcel.append("recipient")
                 
                 # Try multiple address spellings/locations
-                addr_elem = (
-                    rec_node.find("Address") if rec_node is not None else None
-                ) or p_elem.find("Address") # Direct child fallback
+                addr_elem = None
+                if rec_node is not None:
+                    addr_elem = rec_node.find("Address")
+                
+                if addr_elem is None:
+                    addr_elem = p_elem.find("Address") # Direct child fallback
                 
                 street = get_text(addr_elem, "Street")
                 if not street: missing_in_this_parcel.append("street")

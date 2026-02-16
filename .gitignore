@@ -10,3 +10,9 @@ dist
 .vscode
 coverage
 htmlcov
+backend/ssh*
+*.png
+.agent/
+.gemini/
+.env*
+*.log

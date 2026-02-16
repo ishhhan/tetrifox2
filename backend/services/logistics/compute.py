@@ -1,21 +1,20 @@
 """
-Logistics Orchestrator - Facade Pattern
+Logistics Orchestrator - Facade Pattern with Dependency Injection
 
 This module provides a high-level orchestration layer that coordinates
-the entire logistics processing flow, keeping business logic separate
-from the API controller.
+the entire logistics processing flow. It uses Dependency Injection 
+to allow for loose coupling and better testability.
 """
 from typing import List, Dict, Any
 from core.config import logger
 from core.exceptions import AggregatedValidationError
 from validators.logic import ErrorCollector, BusinessValidator
-from services.logistics.parser import XmlParserService
-from services.logistics.engine import RoutingEngineService
-from services.history.store import HistoryStore
+# Note: We import types for hinting, but actual implementations are injected
 from schemas.domain import InternalRule
 from schemas.parsing import ParsingStats, RemovedParcel
 from dtos.request import LogisticsRequest, DepartmentRuleDTO
 from dtos.response import LogisticsResponse, ParcelOutputDTO, AddressDTO, ParsingStatsDTO, RemovedParcelDTO
+from services.logistics.engine import RoutingEngineService
 
 
 class LogisticsOrchestrator:
@@ -31,8 +30,18 @@ class LogisticsOrchestrator:
     6. Return formatted response
     """
     
-    @staticmethod
-    def process(request: LogisticsRequest) -> Dict[str, Any]:
+    def __init__(self, parser_service, history_store):
+        """
+        Initialize with dependencies (Dependency Injection).
+        
+        Args:
+            parser_service: Service to parse XML (e.g., XmlParserService)
+            history_store: Store to save results (e.g., HistoryStore)
+        """
+        self.parser_service = parser_service
+        self.history_store = history_store
+
+    def process(self, request: LogisticsRequest) -> Dict[str, Any]:
         """
         Main orchestration method.
         
@@ -51,16 +60,34 @@ class LogisticsOrchestrator:
         collector = ErrorCollector()
         
         # Validate departments (service-level check)
-        LogisticsOrchestrator._validate_departments(request.departments, collector)
+        if not request.departments:
+            collector.add("At least one department rule is required")
+        else:
+            for dept in request.departments:
+                if dept.type == "range":
+                    BusinessValidator.collect_range_errors(
+                        min_val=dept.min, 
+                        max_val=dept.max, 
+                        dept_name=dept.name, 
+                        field_name=dept.field,
+                        collector=collector
+                    )
+                elif dept.type == "match":
+                    BusinessValidator.collect_match_errors(
+                        match_value=dept.match_value,
+                        dept_name=dept.name,
+                        collector=collector
+                    )
         
         # Validate priority order (service-level check)
-        LogisticsOrchestrator._validate_priorities(request.priority_order, collector)
+        BusinessValidator.collect_priority_errors(request.priority_order, collector)
         
         # 2. Parse XML with error collection and stats
         parcels = []
         parsing_stats = None
         try:
-            parcels, parsing_stats = XmlParserService.parse_with_stats(request.xml_data)
+            # delegated to injected parser
+            parcels, parsing_stats = self.parser_service.parse_with_stats(request.xml_data)
             if not parcels:
                 collector.add("No valid parcels found in XML data")
         except Exception as e:
@@ -83,11 +110,21 @@ class LogisticsOrchestrator:
         ]
         
         # 4. Initialize & Run Engine
-        engine = RoutingEngineService(
-            departments=domain_rules,
-            priority_order=request.priority_order
-        )
-        processed_parcels = engine.execute_routing(parcels)
+        processed_parcels = []
+        try:
+            # We still instantiate Engine directly as it's a domain object factory/process
+            # Ideally this could be injected too, but it depends on per-request rules.
+            engine = RoutingEngineService(
+                departments=domain_rules,
+                priority_order=request.priority_order
+            )
+            processed_parcels = engine.execute_routing(parcels)
+        except ValueError as e:
+            collector.add(f"Routing configuration error: {str(e)}")
+            
+        # Re-check for errors (in case engine init failed)
+        if collector.has_errors():
+            raise AggregatedValidationError(collector.errors)
         
         # 5. Map Domain -> Output DTO
         results = []
@@ -109,15 +146,22 @@ class LogisticsOrchestrator:
         # 6. Prepare history metadata
         departments_data = [dept.model_dump() for dept in request.departments]
         
-        # 7. Save to History with full metadata
-        # parsing_stats is now the shared schema object, so we pass it directly
-        HistoryStore.add_entry(
-            data=[r.model_dump() for r in results],
-            total_processed=len(results),
-            departments=departments_data,
-            priority_order=request.priority_order,
-            parsing_stats=parsing_stats
-        )
+        # 7. Save to History with full metadata (SAFE TRAP)
+        try:
+            # delegated to injected history store
+            self.history_store.add_entry(
+                data=[r.model_dump() for r in results],
+                total_processed=len(results),
+                departments=departments_data,
+                priority_order=request.priority_order,
+                parsing_stats=parsing_stats
+            )
+        except Exception as e:
+            # Trap system errors (DB/IO) and log them, but don't fail the user request
+            # "Fail Open" strategy for auxiliary operations
+            logger.error(f"Failed to save request to history: {str(e)}")
+            # Optionally we could add a warning to the response, but for now we just log.
+
         logger.info(f"Orchestration complete. Processed {len(results)} parcels.")
         
         # 8. Build response with parsing stats
@@ -148,49 +192,4 @@ class LogisticsOrchestrator:
         
         return response
     
-    @staticmethod
-    def _validate_departments(departments: List[DepartmentRuleDTO], collector: ErrorCollector) -> None:
-        """Validate department rules and collect errors."""
-        if not departments:
-            collector.add("At least one department rule is required")
-            return
-            
-        for i, dept in enumerate(departments):
-            # Check range rules
-            if dept.type == "range":
-                if dept.min is not None and dept.min < 0:
-                    collector.add(f"Department '{dept.name}': Minimum value cannot be negative ({dept.min})")
-                
-                if dept.min is not None and dept.max is not None:
-                    if dept.min > dept.max:
-                        collector.add(f"Department '{dept.name}': Min ({dept.min}) cannot be greater than Max ({dept.max})")
-                    
-                    if dept.max > (dept.min * 100) and dept.min > 0:
-                        collector.add(f"Department '{dept.name}': Range too wide (Max exceeds 100x Min)")
-                    
-                    if dept.max > 10000:
-                        collector.add(f"Department '{dept.name}': Max value exceeds limit of 10000")
-            
-            # Check match rules
-            elif dept.type == "match":
-                if not dept.match_value or not dept.match_value.strip():
-                    collector.add(f"Department '{dept.name}': Match value cannot be empty")
-    
-    @staticmethod
-    def _validate_priorities(priorities: List[str], collector: ErrorCollector) -> None:
-        """Validate priority order and collect errors."""
-        if not priorities:
-            collector.add("Priority order cannot be empty")
-            return
-            
-        allowed = {'weight', 'value', 'postal_code', 'recipient', 'city'}
-        for p in priorities:
-            if p not in allowed:
-                collector.add(f"Invalid priority field: '{p}'. Allowed: {', '.join(allowed)}")
-        
-        # Check for duplicates
-        seen = set()
-        for p in priorities:
-            if p in seen:
-                collector.add(f"Duplicate priority field: '{p}'")
-            seen.add(p)
+

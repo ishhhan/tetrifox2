@@ -8,13 +8,13 @@ from datetime import datetime
 from typing import Dict, Any, List, Optional
 from pydantic import BaseModel
 import uuid
+import logging
 from schemas.parsing import ParsingStats, RemovedParcel
+
+logger = logging.getLogger("TetrifoxEngine")
 
 # Alias for backward compatibility
 HistoryParsingStats = ParsingStats
-
-
-
 
 
 class HistoryEntry(BaseModel):
@@ -74,6 +74,7 @@ class HistoryStore:
             parsing_stats=parsing_stats
         )
         cls._entries[entry_id] = entry
+        logger.info(f"History entry created: {entry_id} ({total_processed} parcels)")
         return entry_id
     
     @classmethod
@@ -98,6 +99,7 @@ class HistoryStore:
         """Delete a history entry by ID. Returns True if deleted."""
         if entry_id in cls._entries:
             del cls._entries[entry_id]
+            logger.info(f"History entry deleted: {entry_id}")
             return True
         return False
     
